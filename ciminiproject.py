@@ -9,8 +9,6 @@ Original file is located at
 #Install and Import Required Libraries
 """
 
-# Install necessary packages
-!pip install streamlit opencv-python-headless numpy Pillow --quiet
 
 # For later Firebase or email simulation
 !pip install pyrebase4 --quiet
