@@ -157,7 +157,7 @@ if selected_sector:
                 msg["Subject"] = f"🚨 Alert: Incident Captured at {selected_sector}"
                 msg["From"] = email_config["EMAIL_ADDRESS"]
                 msg["To"] = email_config["EMAIL_RECEIVER"]
-                msg.set_content(f"Incident reported in {selected_sector}.\n\nDetails:\n{log_text}")
+                msg.set_content(f"Dear Officer, An alert has been triggered by SmartSight! Incident reported in {selected_sector}.\n\nDetails:\n{log_text}")
 
                 msg.add_attachment(image_buffer.read(), maintype="image", subtype="png", filename="enhanced_image.png")
                 msg.add_attachment(log_bytes.read(), maintype="text", subtype="plain", filename="alert_log.txt")
