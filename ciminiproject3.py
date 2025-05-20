@@ -25,12 +25,12 @@ def main():
 
     if image_file is not None:
         input_image = Image.open(image_file).convert("RGB")
-        st.image(input_image, caption="Original Image", use_column_width=True)
+        st.image(input_image, caption="Original Image", use_container_width=True)
 
         img_array = np.array(input_image)
         enhanced_image = enhance_image_clahe(img_array)
 
-        st.image(enhanced_image, caption="Enhanced Image", use_column_width=True)
+        st.image(enhanced_image, caption="Enhanced Image", use_container_width=True)
 
         # Save to temp file
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
