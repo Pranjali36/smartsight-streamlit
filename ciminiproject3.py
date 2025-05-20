@@ -3,9 +3,8 @@ import numpy as np
 import cv2
 from PIL import Image
 import io
-import base64
 
-# Set page configuration (must be first Streamlit command)
+# ----------------- Page Config -----------------
 st.set_page_config(page_title="SmartSight", layout="centered")
 
 # ----------------- Styling -----------------
@@ -56,7 +55,7 @@ else:
 
 enhanced_image = None
 
-# ----------------- Enhancement -----------------
+# ----------------- Enhancement Logic -----------------
 if uploaded_image:
     image = Image.open(uploaded_image).convert("RGB")
     st.image(image, caption="Original Image", use_column_width=True)
@@ -66,7 +65,7 @@ if uploaded_image:
         img_np = np.array(image)
         img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-        # Convert to LAB color space and apply CLAHE
+        # Apply CLAHE in LAB color space
         lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
@@ -75,19 +74,25 @@ if uploaded_image:
         enhanced_bgr = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         enhanced_rgb = cv2.cvtColor(enhanced_bgr, cv2.COLOR_BGR2RGB)
 
+        # Display Enhanced Image
         enhanced_image = Image.fromarray(enhanced_rgb)
-
         st.image(enhanced_image, caption="🔆 Enhanced Image", use_column_width=True)
 
-        # Convert to downloadable format
+        # Download Button for Enhanced Image
         buffer = io.BytesIO()
         enhanced_image.save(buffer, format="PNG")
-        byte_data = buffer.getvalue()
-        b64 = base64.b64encode(byte_data).decode()
-        href = f'<a href="data:file/png;base64,{b64}" download="enhanced_image.png">📥 <b>Download Enhanced Image</b></a>'
-        st.markdown(href, unsafe_allow_html=True)
+        st.download_button(
+            label="📥 Download Enhanced Image",
+            data=buffer.getvalue(),
+            file_name="enhanced_image.png",
+            mime="image/png",
+            key="download_btn"
+        )
 
-        # Add Google Drive redirection link
+        # Link to Google Drive for Manual Upload
         st.markdown("---")
         st.markdown("🚀 Want to save it to your Google Drive?")
-        st.markdown('<a class="stLink" href="https://drive.google.com/drive/my-drive" target="_blank">Click here to open your Drive and upload manually</a>', unsafe_allow_html=True)
+        st.markdown(
+            '<a class="stLink" href="https://drive.google.com/drive/my-drive" target="_blank">Click here to open your Drive and upload manually</a>',
+            unsafe_allow_html=True
+        )
