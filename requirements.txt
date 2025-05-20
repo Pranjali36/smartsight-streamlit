@@ -2,5 +2,6 @@ streamlit
 opencv-python-headless
 numpy
 Pillow
-PyDrive
-oauth2client
+google-auth
+google-auth-oauthlib
+google-api-python-client
