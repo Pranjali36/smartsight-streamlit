@@ -21,19 +21,23 @@ method = st.radio("Choose Enhancement Method", ["CLAHE (Classical)"], horizontal
 image_file = st.camera_input("📸 Take a photo (optional)") or st.file_uploader("📁 Or upload a low-light image", type=["jpg", "png", "jpeg"])
 
 # Enhance image function using CLAHE
-def enhance_with_clahe(img_pil):
-    img_cv = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
-    lab = cv2.cvtColor(img_cv, cv2.COLOR_BGR2LAB)
+def enhance_low_light_image_clahe(img):
+    # Convert to LAB color space (L = lightness)
+    lab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
     l, a, b = cv2.split(lab)
 
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    # Apply CLAHE to the L-channel
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     cl = clahe.apply(l)
 
-    merged = cv2.merge((cl, a, b))
-    final_img = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
-    final_rgb = cv2.cvtColor(final_img, cv2.COLOR_BGR2RGB)
-    return Image.fromarray(final_rgb)
-
+    # Merge the CLAHE enhanced L-channel back with A and B channels
+    enhanced_lab = cv2.merge((cl, a, b))
+    
+    # Convert back to RGB color space
+    enhanced_img = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2RGB)
+    
+    return enhanced_img
+    
 # Process and show
 if image_file:
     image = Image.open(image_file)
