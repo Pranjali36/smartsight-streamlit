@@ -43,7 +43,7 @@ st.markdown("""
 
 # ----------------- Header -----------------
 st.title("🔍 SmartSight")
-st.subheader("Real-Time Image Enhancement and Alert System", layout="centered")
+st.subheader("Real-Time Image Enhancement and Alert System", align="center")
 
 # ----------------- Upload Section -----------------
 upload_method = st.radio("Select Image Input Method", ("📸 Camera", "📁 Upload from device"))
