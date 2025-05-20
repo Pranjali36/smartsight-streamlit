@@ -10,6 +10,9 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import smtplib
 from email.mime.text import MIMEText
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
+from oauth2client.service_account import ServiceAccountCredentials
 
 st.set_page_config(page_title="SmartSight", layout="centered")
 st.title("📷 SmartSight: Real-Time Low-Light Enhancement")
@@ -26,28 +29,22 @@ def enhance_low_light_image_clahe(image):
     return Image.fromarray(final)
 
 # === Google Drive Upload (OAuth2 User Flow) ===
-def upload_to_gdrive_oauth(image_buffer, filename):
-    SCOPES = ['https://www.googleapis.com/auth/drive.file']
-    creds = None
-    token_path = 'token.pkl'
+def upload_to_gdrive(image_bytes, filename):
+    scope = ['https://www.googleapis.com/auth/drive']
+    credentials_path = 'smart_service_account.json'  # Make sure this matches your uploaded filename
 
-    if os.path.exists(token_path):
-        with open(token_path, 'rb') as token:
-            creds = pickle.load(token)
+    try:
+        credentials = ServiceAccountCredentials.from_json_keyfile_name(credentials_path, scope)
+        service = build('drive', 'v3', credentials=credentials)
 
-    if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file('smart_client_config.json', SCOPES)
-        creds = flow.run_local_server(port=0)
-        with open(token_path, 'wb') as token:
-            pickle.dump(creds, token)
+        file_metadata = {'name': filename}
+        media = MediaIoBaseUpload(image_bytes, mimetype='image/jpeg')
 
-    service = build('drive', 'v3', credentials=creds)
-    file_metadata = {'name': filename}
-    media = MediaIoBaseUpload(image_buffer, mimetype='image/jpeg')
-    file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-    file_id = file.get('id')
-    link = f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
-    return link
+        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        file_id = file.get('id')
+        return f"https://drive.google.com/file/d/{file_id}/view"
+    except Exception as e:
+        return f"Google Drive upload failed: {e}"
 
 # === Email Alert Function (Simulation) ===
 def simulate_alert():
