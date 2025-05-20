@@ -1,15 +1,15 @@
 import streamlit as st
-from PIL import Image
-import io
+from PIL import Image, ImageEnhance
 import tempfile
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+import cv2
+import numpy as np
 
 # --- Google Drive upload setup ---
 
 def get_drive_service():
-    # Load service account info from secrets and fix private_key newlines
     service_account_info = dict(st.secrets["gcp_service_account"])
     service_account_info["private_key"] = service_account_info["private_key"].replace("\\n", "\n")
     credentials = service_account.Credentials.from_service_account_info(
@@ -29,18 +29,32 @@ def upload_file_to_drive(filepath, filename):
     except Exception as e:
         st.error(f"Google Drive upload failed: {e}")
 
-# --- Image processing (example enhancement stub) ---
+# --- Enhancement function with CLAHE ---
 
 def enhance_image(image: Image.Image) -> Image.Image:
-    # Insert your image enhancement logic here.
-    # For example, just return the original image (no enhancement).
-    return image
+    # Convert PIL image to OpenCV
+    img_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    
+    # Convert to LAB color space
+    lab = cv2.cvtColor(img_cv, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
 
-# --- Streamlit app UI ---
+    # Apply CLAHE to L channel
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+    cl = clahe.apply(l)
+
+    # Merge channels and convert back to RGB
+    merged = cv2.merge((cl, a, b))
+    enhanced_cv = cv2.cvtColor(merged, cv2.COLOR_LAB2RGB)
+    
+    # Convert back to PIL Image
+    enhanced_pil = Image.fromarray(enhanced_cv)
+    return enhanced_pil
+
+# --- Streamlit UI ---
 
 st.title("SmartSight - Low Light Enhancement & Upload")
 
-# Choose image input method
 input_method = st.radio("Select input method", ("Upload image", "Use camera"))
 
 img = None
@@ -54,20 +68,16 @@ elif input_method == "Use camera":
     if captured_img:
         img = Image.open(captured_img)
 
-# Show and process image if available
 if img:
-    st.image(img, caption="Original Image", use_container_width=True)
-    
-    # Enhance the image (replace with your real enhancement)
-    enhanced_img = enhance_image(img)
-    
-    st.image(enhanced_img, caption="Enhanced Image", use_container_width=True)
-    
-    # Save enhanced image to a temporary file to upload
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
-        enhanced_img.save(tmp_file.name)
-        tmp_file_path = tmp_file.name
-    
-    # Upload button
-    if st.button("Upload Enhanced Image to Google Drive"):
-        upload_file_to_drive(tmp_file_path, "enhanced_image.png")
+    st.image(img, caption="Original Image", use_column_width=True)
+
+    if st.button("Enhance Image"):
+        enhanced_img = enhance_image(img)
+        st.image(enhanced_img, caption="Enhanced Image", use_column_width=True)
+
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
+            enhanced_img.save(tmp_file.name)
+            tmp_file_path = tmp_file.name
+
+        if st.button("Upload Enhanced Image to Google Drive"):
+            upload_file_to_drive(tmp_file_path, "enhanced_image.png")
