@@ -3,50 +3,69 @@ import cv2
 import numpy as np
 from PIL import Image
 import tempfile
+import os
+import base64
 
+# Function to apply CLAHE to an image
 def enhance_image_clahe(image):
-    # Convert to LAB and apply CLAHE
     lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
     l, a, b = cv2.split(lab)
     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
     cl = clahe.apply(l)
-    enhanced_lab = cv2.merge((cl, a, b))
-    enhanced_image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2RGB)
-    return enhanced_image
+    limg = cv2.merge((cl, a, b))
+    enhanced_img = cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
+    return enhanced_img
 
-def main():
-    st.title("SmartSight - Low-Light Enhancer")
-    st.write("Upload an image or capture one using your camera:")
+# Convert image to download link
+def get_image_download_link(img, filename='enhanced_image.png'):
+    buffered = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+    img.save(buffered.name, format='PNG')
+    with open(buffered.name, 'rb') as f:
+        data = f.read()
+    b64 = base64.b64encode(data).decode()
+    href = f'<a href="data:file/png;base64,{b64}" download="{filename}">📥 Download Enhanced Image</a>'
+    return href
 
-    uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
-    camera_capture = st.camera_input("Or take a picture with your camera")
+# Streamlit UI
+st.set_page_config(page_title="SmartSight", layout="centered")
+st.title("🔍 SmartSight: Low-Light Image Enhancer")
 
-    image_file = uploaded_file or camera_capture
+# File upload or camera input
+input_method = st.radio("Select input method:", ("Upload Image", "Capture from Camera"))
 
-    if image_file is not None:
-        input_image = Image.open(image_file).convert("RGB")
-        st.image(input_image, caption="Original Image", use_container_width=True)
+if input_method == "Upload Image":
+    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+    if uploaded_file is not None:
+        img = Image.open(uploaded_file).convert("RGB")
+        image_np = np.array(img)
+elif input_method == "Capture from Camera":
+    camera_image = st.camera_input("Capture an image")
+    if camera_image is not None:
+        img = Image.open(camera_image).convert("RGB")
+        image_np = np.array(img)
 
-        img_array = np.array(input_image)
-        enhanced_image = enhance_image_clahe(img_array)
+# Enhance and show result
+if 'image_np' in locals():
+    st.subheader("📸 Original Image")
+    st.image(image_np, channels="RGB", use_column_width=True)
 
-        st.image(enhanced_image, caption="Enhanced Image", use_container_width=True)
+    enhanced_np = enhance_image_clahe(image_np)
+    enhanced_img = Image.fromarray(enhanced_np)
 
-        # Save to temp file
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        enhanced_pil = Image.fromarray(enhanced_image)
-        enhanced_pil.save(temp_file.name)
+    st.subheader("✨ Enhanced Image")
+    st.image(enhanced_img, channels="RGB", use_column_width=True)
 
-        # Download button
-        with open(temp_file.name, "rb") as f:
-            st.download_button("Download Enhanced Image", f.read(), file_name="enhanced_image.png", mime="image/png")
+    # Download button
+    st.markdown(get_image_download_link(enhanced_img), unsafe_allow_html=True)
 
-        # Drive upload note
-        drive_link = st.text_input("Paste your Google Drive folder link (optional)")
-        if drive_link:
-            st.success("You can now manually upload the downloaded image to your Drive folder.")
-    else:
-        st.info("Please upload or capture an image to proceed.")
-
-if __name__ == "__main__":
-    main()
+    # Redirect to Google Drive
+    st.markdown("---")
+    st.markdown("After downloading the enhanced image, you can upload it to your Google Drive:")
+    st.markdown(
+        """
+        <a href="https://drive.google.com/drive/my-drive" target="_blank">
+            🚀 Go to Google Drive
+        </a>
+        """,
+        unsafe_allow_html=True
+    )
