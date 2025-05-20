@@ -3,10 +3,9 @@ import cv2
 import numpy as np
 from PIL import Image
 import tempfile
-import os
 import base64
 
-# Function to apply CLAHE to an image
+# Enhance image using CLAHE
 def enhance_image_clahe(image):
     lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
     l, a, b = cv2.split(lab)
@@ -16,7 +15,7 @@ def enhance_image_clahe(image):
     enhanced_img = cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
     return enhanced_img
 
-# Convert image to download link
+# Create download link for enhanced image
 def get_image_download_link(img, filename='enhanced_image.png'):
     buffered = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
     img.save(buffered.name, format='PNG')
@@ -30,9 +29,10 @@ def get_image_download_link(img, filename='enhanced_image.png'):
 st.set_page_config(page_title="SmartSight", layout="centered")
 st.title("🔍 SmartSight: Low-Light Image Enhancer")
 
-# File upload or camera input
 input_method = st.radio("Select input method:", ("Upload Image", "Capture from Camera"))
 
+image_np = None
+img = None
 if input_method == "Upload Image":
     uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
     if uploaded_file is not None:
@@ -44,28 +44,29 @@ elif input_method == "Capture from Camera":
         img = Image.open(camera_image).convert("RGB")
         image_np = np.array(img)
 
-# Enhance and show result
-if 'image_np' in locals():
+if image_np is not None:
     st.subheader("📸 Original Image")
-    st.image(image_np, channels="RGB", use_column_width=True)
+    st.image(image_np, channels="RGB", use_container_width=True)
 
-    enhanced_np = enhance_image_clahe(image_np)
-    enhanced_img = Image.fromarray(enhanced_np)
+    # Button to enhance image
+    if st.button("✨ Enhance Image"):
+        enhanced_np = enhance_image_clahe(image_np)
+        enhanced_img = Image.fromarray(enhanced_np)
 
-    st.subheader("✨ Enhanced Image")
-    st.image(enhanced_img, channels="RGB", use_column_width=True)
+        st.subheader("🔧 Enhanced Image")
+        st.image(enhanced_img, channels="RGB", use_container_width=True)
 
-    # Download button
-    st.markdown(get_image_download_link(enhanced_img), unsafe_allow_html=True)
+        # Download link
+        st.markdown(get_image_download_link(enhanced_img), unsafe_allow_html=True)
 
-    # Redirect to Google Drive
-    st.markdown("---")
-    st.markdown("After downloading the enhanced image, you can upload it to your Google Drive:")
-    st.markdown(
-        """
-        <a href="https://drive.google.com/drive/my-drive" target="_blank">
-            🚀 Go to Google Drive
-        </a>
-        """,
-        unsafe_allow_html=True
-    )
+        # Redirect to Google Drive
+        st.markdown("---")
+        st.markdown("After downloading, you can upload the image to your Google Drive:")
+        st.markdown(
+            """
+            <a href="https://drive.google.com/drive/my-drive" target="_blank">
+                🚀 Cloud Upload
+            </a>
+            """,
+            unsafe_allow_html=True
+        )
