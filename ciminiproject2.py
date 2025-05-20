@@ -1,5 +1,5 @@
-import streamlit as st
-from PIL import Image, ImageEnhance
+import streamlit as st 
+from PIL import Image
 import tempfile
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -32,24 +32,14 @@ def upload_file_to_drive(filepath, filename):
 # --- Enhancement function with CLAHE ---
 
 def enhance_image(image: Image.Image) -> Image.Image:
-    # Convert PIL image to OpenCV
     img_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-    
-    # Convert to LAB color space
     lab = cv2.cvtColor(img_cv, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
-
-    # Apply CLAHE to L channel
     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
     cl = clahe.apply(l)
-
-    # Merge channels and convert back to RGB
     merged = cv2.merge((cl, a, b))
     enhanced_cv = cv2.cvtColor(merged, cv2.COLOR_LAB2RGB)
-    
-    # Convert back to PIL Image
-    enhanced_pil = Image.fromarray(enhanced_cv)
-    return enhanced_pil
+    return Image.fromarray(enhanced_cv)
 
 # --- Streamlit UI ---
 
@@ -71,13 +61,19 @@ elif input_method == "Use camera":
 if img:
     st.image(img, caption="Original Image", use_container_width=True)
 
+    # Enhance Image button
     if st.button("Enhance Image"):
         enhanced_img = enhance_image(img)
-        st.image(enhanced_img, caption="Enhanced Image", use_container_width=True)
+        st.session_state['enhanced_img'] = enhanced_img
 
+        # Save enhanced image temporarily for upload
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
             enhanced_img.save(tmp_file.name)
-            tmp_file_path = tmp_file.name
+            st.session_state['tmp_file_path'] = tmp_file.name
+
+    # If enhanced image is stored, display it and upload button
+    if 'enhanced_img' in st.session_state:
+        st.image(st.session_state['enhanced_img'], caption="Enhanced Image", use_container_width=True)
 
         if st.button("Upload Enhanced Image to Google Drive"):
-            upload_file_to_drive(tmp_file_path, "enhanced_image.png")
+            upload_file_to_drive(st.session_state['tmp_file_path'], "enhanced_image.png")
