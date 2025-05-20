@@ -45,7 +45,7 @@ if image_file:
 
     if st.button("✨ Enhance Image"):
         with st.spinner("Enhancing image..."):
-            enhanced_image = enhance_with_clahe(image)
+            enhanced_image =  enhance_low_light_image_clahe(image)
             st.image(enhanced_image, caption="Enhanced Image", use_container_width=True)
 
         # Optional alert
