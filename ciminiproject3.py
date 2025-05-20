@@ -42,7 +42,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ----------------- Header -----------------
-st.title("🔍 SmartSight - Low Light Image Enhancer")
+st.title("🔍 SmartSight")
+st.subheader("Real-Time Image Enhancement and Alert System")
 
 # ----------------- Upload Section -----------------
 upload_method = st.radio("Select Image Input Method", ("📸 Camera", "📁 Upload from device"))
@@ -58,7 +59,7 @@ enhanced_image = None
 # ----------------- Enhancement Logic -----------------
 if uploaded_image:
     image = Image.open(uploaded_image).convert("RGB")
-    st.image(image, caption="Original Image", use_column_width=True)
+    st.image(image, caption="Original Image", use_container_width=True)
 
     if st.button("✨ Enhance Image"):
         # Convert to OpenCV format
@@ -76,7 +77,7 @@ if uploaded_image:
 
         # Display Enhanced Image
         enhanced_image = Image.fromarray(enhanced_rgb)
-        st.image(enhanced_image, caption="🔆 Enhanced Image", use_column_width=True)
+        st.image(enhanced_image, caption="🔆 Enhanced Image", use_container_width=True)
 
         # Download Button for Enhanced Image
         buffer = io.BytesIO()
