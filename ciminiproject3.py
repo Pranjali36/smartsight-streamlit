@@ -3,10 +3,9 @@ import numpy as np
 import cv2
 from PIL import Image
 import io
-import pandas as pd
 import smtplib
-import csv
 from email.message import EmailMessage
+import os
 from datetime import datetime
 
 # ----------------- Page Config -----------------
@@ -48,7 +47,7 @@ st.markdown("""
 
 # ----------------- Header -----------------
 st.title("🔍 SmartSight")
-st.markdown("<div style='text-align: center; font-size: 24px; font-weight: 600;'>Real-Time Image Enhancement and Police Alert System</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; font-size: 24px; font-weight: 600;'>Real-Time Image Enhancement and Alert System</div>", unsafe_allow_html=True)
 st.markdown("---")
 
 # ----------------- Upload Section -----------------
@@ -81,9 +80,8 @@ if uploaded_image:
         limg = cv2.merge((cl, a, b))
         enhanced_bgr = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         enhanced_rgb = cv2.cvtColor(enhanced_bgr, cv2.COLOR_BGR2RGB)
-
-        # Display enhanced image
         enhanced_image = Image.fromarray(enhanced_rgb)
+
         st.image(enhanced_image, caption="🔆 Enhanced Image", use_container_width=True)
 
         # Download button
@@ -97,7 +95,7 @@ if uploaded_image:
             key="download_btn"
         )
 
-        # Redirect to Google Drive
+        # Link to Drive
         st.markdown("---")
         st.markdown("🚀 Save Space! Upload to Cloud")
         st.markdown(
@@ -105,89 +103,75 @@ if uploaded_image:
             unsafe_allow_html=True
         )
 
+        # ----------------- Police Alert System -----------------
         st.markdown("---")
-
-        # ----------------- Police Alert Mechanism -----------------
         st.subheader("🚨 Police Alert System")
 
-        # Dropdown for sectors
-        sector = st.selectbox("Select your sector or area", [
-            "Sector 1", "Sector 2", "Sector 3", "Sector 4", "Sector 5"
-        ])
-
-        sector_to_station = {
+        sector_map = {
             "Sector 1": "Central Police Station",
-            "Sector 2": "North Zone Police HQ",
-            "Sector 3": "South Precinct Station",
-            "Sector 4": "West Side Police Unit",
-            "Sector 5": "East End Police Department"
+            "Sector 2": "West End Police Station",
+            "Sector 3": "East Zone Station",
+            "Sector 4": "South Hill Police HQ",
+            "Sector 5": "North Gate Station"
         }
 
-        matched_station = sector_to_station.get(sector, "Unknown")
+        selected_sector = st.selectbox("Select Sector", list(sector_map.keys()))
+        if selected_sector:
+            matched_station = sector_map[selected_sector]
+            st.success(f"📍 Mapped to: {matched_station}")
 
-        # Display mapping
-        st.success(f"Nearest Police Station: **{matched_station}**")
+            # Generate Log
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            image_name = "enhanced_image.png"
+            location = selected_sector
+            log_entry = {
+                "Timestamp": timestamp,
+                "Image Name": image_name,
+                "Location": location,
+                "Station": matched_station
+            }
 
-        # Logging info
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        image_name = uploaded_image.name if hasattr(uploaded_image, 'name') else "captured_image.png"
-        log_data = [{
-            "Timestamp": timestamp,
-            "Image Name": image_name,
-            "Sector": sector,
-            "Mapped Station": matched_station
-        }]
+            # Display log
+            st.markdown("### 🧾 Image Alert Log")
+            st.table([log_entry])
 
-        log_df = pd.DataFrame(log_data)
-        st.dataframe(log_df, use_container_width=True)
+            # Send Email
+            if st.button("📨 Send Alert Log to Police"):
+                try:
+                    # Read email config
+                    email_config = {}
+                    with open("email_config.txt", "r") as f:
+                        for line in f:
+                            if "=" in line:
+                                key, value = line.strip().split("=", 1)
+                                email_config[key.strip()] = value.strip()
 
-        # Write log to CSV
-        log_file = "incident_log.csv"
-        log_df.to_csv(log_file, index=False)
+                    # Build log file
+                    log_text = "\n".join([f"{k}: {v}" for k, v in log_entry.items()])
+                    log_bytes = io.BytesIO(log_text.encode("utf-8"))
 
-        # Read Mailtrap config
-        try:
-            with open("email_config.txt", "r") as file:
-                lines = file.read().splitlines()
-                sender_email = lines[0].split("=")[1].strip()
-                sender_password = lines[1].split("=")[1].strip()
-                recipient_email = lines[2].split("=")[1].strip()
-                smtp_server = lines[3].split("=")[1].strip()
-                smtp_port = int(lines[4].split("=")[1].strip())
-        except Exception as e:
-            st.error("Failed to read email_config.txt")
-            st.stop()
+                    # Save image to buffer
+                    image_buffer = io.BytesIO()
+                    enhanced_image.save(image_buffer, format="PNG")
+                    image_buffer.seek(0)
 
-        # Send alert button
-        if st.button("📨 Send Alert Log"):
-            try:
-                # Compose email
-                msg = EmailMessage()
-                msg["Subject"] = f"SmartSight Alert - {sector}"
-                msg["From"] = sender_email
-                msg["To"] = recipient_email
-                msg.set_content(f"""
-                Incident Detected:
-                Timestamp: {timestamp}
-                Sector: {sector}
-                Police Station: {matched_station}
-                Image Name: {image_name}
-                """)
+                    # Compose Email
+                    msg = EmailMessage()
+                    msg["Subject"] = f"🚨 Alert: Incident Captured - {timestamp}"
+                    msg["From"] = email_config["EMAIL_ADDRESS"]
+                    msg["To"] = email_config["EMAIL_RECEIVER"]
+                    msg.set_content(f"An alert has been triggered in {location}. See attached image and log details.")
 
-                # Attach enhanced image
-                img_buffer = io.BytesIO()
-                enhanced_image.save(img_buffer, format="PNG")
-                img_buffer.seek(0)
-                msg.add_attachment(img_buffer.read(), maintype="image", subtype="png", filename="enhanced_image.png")
+                    # Attach image and log
+                    msg.add_attachment(image_buffer.read(), maintype="image", subtype="png", filename="enhanced_image.png")
+                    msg.add_attachment(log_bytes.read(), maintype="text", subtype="plain", filename="alert_log.txt")
 
-                # Attach CSV log
-                with open(log_file, "rb") as f:
-                    msg.add_attachment(f.read(), maintype="text", subtype="csv", filename=log_file)
+                    # Send Email
+                    with smtplib.SMTP(email_config["SMTP_SERVER"], int(email_config["SMTP_PORT"])) as server:
+                        server.starttls()
+                        server.login(email_config["EMAIL_ADDRESS"], email_config["EMAIL_PASSWORD"])
+                        server.send_message(msg)
 
-                with smtplib.SMTP(smtp_server, smtp_port) as server:
-                    server.login(sender_email, sender_password)
-                    server.send_message(msg)
-
-                st.success("✅ Alert sent successfully to the police helpline!")
-            except Exception as e:
-                st.error(f"❌ Failed to send alert: {e}")
+                    st.success("✅ Alert sent successfully to the police station.")
+                except Exception as e:
+                    st.error(f"Failed to send alert: {e}")
