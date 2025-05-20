@@ -1,76 +1,58 @@
 import streamlit as st
 import numpy as np
 import cv2
-from PIL import Image
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-import tempfile
-import os
+from PIL import Image
+import io
 
-# ----------------------------
 # Load the Zero-DCE model
-# ----------------------------
 @st.cache_resource
 def load_zero_dce_model():
-    model_path = "zero_dce_model.h5"  # Ensure this is uploaded in your GitHub repo
-    model = load_model(model_path, compile=False)
+    model = load_model("zero_dce_model.h5", compile=False)
     return model
 
-# ----------------------------
-# Enhance the image using the model
-# ----------------------------
-def enhance_image(img, model):
-    input_img = cv2.resize(img, (224, 224)) / 255.0
-    input_tensor = tf.convert_to_tensor(np.expand_dims(input_img, axis=0), dtype=tf.float32)
-    enhanced_tensor = model(input_tensor)
-    enhanced_img = tf.squeeze(enhanced_tensor).numpy()
-    enhanced_img = (enhanced_img * 255).astype(np.uint8)
-    enhanced_img = cv2.resize(enhanced_img, (img.shape[1], img.shape[0]))
-    return enhanced_img
+model = load_zero_dce_model()
 
-# ----------------------------
-# Simulate danger alert
-# ----------------------------
-def simulate_alert(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    brightness = np.mean(gray)
-    if brightness < 50:
-        st.error("⚠️ Alert: Very low visibility detected!")
-    else:
-        st.success("✅ Visibility levels are normal.")
+# Enhance the image using Zero-DCE
+def enhance_image(img):
+    input_img = cv2.resize(img, (512, 512))  # Resize to model input
+    input_img = input_img / 255.0  # Normalize
+    input_tensor = np.expand_dims(input_img, axis=0).astype(np.float32)
 
-# ----------------------------
-# Simulate cloud upload
-# ----------------------------
-def upload_to_cloud(img):
-    filename = "enhanced_image.jpg"
-    cv2.imwrite(filename, img)
-    st.info("✅ Image saved locally (simulated cloud upload).")
-    return filename
+    output = model.predict(input_tensor)[0]
+    output = np.clip(output, 0, 1) * 255.0
+    output = output.astype(np.uint8)
+    return output
 
-# ----------------------------
-# Main Streamlit app
-# ----------------------------
-def main():
-    st.title("SmartSight: Low-Light Image Enhancer 🌙")
-    st.subheader("A Real-Time Safety Monitoring System")
-    st.write("Upload a low-light image to enhance it using Zero-DCE and receive safety alerts.")
+# Streamlit GUI
+st.set_page_config(page_title="SmartSight - Low Light Enhancer", layout="centered")
+st.title("🌙 SmartSight: Real-Time Low-Light Image Enhancement")
+st.markdown("Enhance low-light images using deep learning on the fly.")
 
-    model = load_zero_dce_model()
+uploaded_file = st.file_uploader("📤 Upload a low-light image", type=["jpg", "jpeg", "png"])
 
-    uploaded_file = st.file_uploader("Upload a Low-Light Image", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file is not None:
-        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        bgr_image = cv2.imdecode(file_bytes, 1)
-        st.image(cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB), caption="Original Image", use_column_width=True)
+if uploaded_file is not None:
+    image = Image.open(uploaded_file).convert("RGB")
+    img_np = np.array(image)
 
-        if st.button("Enhance Image"):
-            enhanced = enhance_image(bgr_image, model)
-            st.image(cv2.cvtColor(enhanced, cv2.COLOR_BGR2RGB), caption="Enhanced Image", use_column_width=True)
+    st.subheader("🔍 Original Image")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-            simulate_alert(enhanced)
-            upload_to_cloud(enhanced)
+    if st.button("✨ Enhance Image"):
+        with st.spinner("Enhancing..."):
+            enhanced = enhance_image(img_np)
+            st.subheader("🚀 Enhanced Image")
+            st.image(enhanced, caption="Enhanced Output", use_column_width=True)
 
-if __name__ == "__main__":
-    main()
+            # Download Button
+            enhanced_pil = Image.fromarray(enhanced)
+            buf = io.BytesIO()
+            enhanced_pil.save(buf, format="PNG")
+            byte_im = buf.getvalue()
+            st.download_button(
+                label="📥 Download Enhanced Image",
+                data=byte_im,
+                file_name="enhanced_image.png",
+                mime="image/png"
+            )
