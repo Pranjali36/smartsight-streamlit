@@ -1,5 +1,5 @@
-EMAIL_HOST=sandbox.smtp.mailtrap.io
-EMAIL_PORT=587
-EMAIL_USERNAME=0afaa00a8c3d10
+EMAIL_ADDRESS=0afaa00a8c3d10
 EMAIL_PASSWORD=c2e62eba15b744
-RECEIVER_EMAIL=pranjali.thakur@etu.unige.ch
+EMAIL_RECEIVER=pranjali.thakur@etu.unige.ch
+SMTP_SERVER=sandbox.smtp.mailtrap.io
+EMAIL_PORT=587
