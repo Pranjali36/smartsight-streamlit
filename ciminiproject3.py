@@ -5,6 +5,9 @@ from PIL import Image
 import tempfile
 import base64
 
+# ------------------------ Set Page Config FIRST ------------------------
+st.set_page_config(page_title="SmartSight", layout="centered")
+
 # ------------------------ Custom Styling ------------------------
 def local_css():
     st.markdown("""
@@ -84,7 +87,7 @@ def get_image_download_link(img, filename='enhanced_image.png'):
 
 # ------------------------ Streamlit UI ------------------------
 local_css()
-st.set_page_config(page_title="SmartSight", layout="centered")
+
 st.title("🔍 SmartSight: Low-Light Image Enhancer")
 
 input_method = st.radio("Choose input method:", ("Upload Image", "Capture from Camera"))
@@ -122,7 +125,7 @@ if image_np is not None:
         st.markdown(
             """
             <a href="https://drive.google.com/drive/my-drive" target="_blank">
-                🚀 Cloud Upload
+                🚀 Open Google Drive to upload
             </a>
             """, unsafe_allow_html=True
         )
