@@ -1,3 +1,3 @@
-EMAIL_ADDRESS=pranjali.thakur@etu.unige.ch
-EMAIL_PASSWORD=Pratibha@6137
+EMAIL_ADDRESS=pranjalithakur36@gmail.com
+EMAIL_PASSWORD=Admin@123
 ALERT_RECEIVER_EMAIL=pranjali.thakur@etu.unige.ch
