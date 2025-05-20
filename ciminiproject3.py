@@ -45,7 +45,6 @@ st.markdown("""
 st.title("🔍 SmartSight")
 st.markdown("<div style='text-align: center; font-size: 24px; font-weight: 600;'>Real-Time Image Enhancement and Alert System</div>", unsafe_allow_html=True)
 st.markdown("---")
-st.markdown("---")
 
 # ----------------- Upload Section -----------------
 upload_method = st.radio("Select Image Input Method", ("📸 Camera", "📁 Upload from device"))
