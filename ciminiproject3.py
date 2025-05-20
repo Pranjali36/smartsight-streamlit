@@ -76,15 +76,24 @@ def enhance_image_clahe(image):
     return enhanced_img
 
 # ------------------------ Download Link Generator ------------------------
-def get_image_download_link(img, filename='enhanced_image.png'):
-    buffered = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
-    img.save(buffered.name, format='PNG')
-    with open(buffered.name, 'rb') as f:
-        data = f.read()
-    b64 = base64.b64encode(data).decode()
-    href = f'<a href="data:file/png;base64,{b64}" download="{filename}">📥 Download Enhanced Image</a>'
-    return href
+st.markdown("---")
+st.subheader("✨ Refined Image")
 
+# Display enhanced image
+st.image(enhanced_img, caption="Your enhanced image is ready!", use_column_width=True)
+
+# Convert to download-ready format
+_, buffer = cv2.imencode(".png", enhanced_img)
+image_bytes = buffer.tobytes()
+
+# 📥 Download button
+st.download_button(
+    label="📥 Download Enhanced Image",
+    data=image_bytes,
+    file_name="enhanced_image.png",
+    mime="image/png",
+    use_container_width=True
+)
 # ------------------------ Streamlit UI ------------------------
 local_css()
 
