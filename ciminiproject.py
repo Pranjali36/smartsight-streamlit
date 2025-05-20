@@ -1,11 +1,9 @@
-# Full updated Streamlit-compatible code using tflite-runtime
 import streamlit as st
 import numpy as np
-import cv2
 from PIL import Image
 import tflite_runtime.interpreter as tflite
 
-# Load TFLite model
+# Load TFLite model with caching
 @st.cache_resource
 def load_model():
     interpreter = tflite.Interpreter(model_path="zero_dce_model.tflite")
@@ -14,19 +12,19 @@ def load_model():
     output_details = interpreter.get_output_details()
     return interpreter, input_details, output_details
 
-# Preprocess image to fit model input
 def preprocess_image(image, input_shape):
+    # Resize image to model input size (height, width)
     img = image.resize((input_shape[2], input_shape[1]))
-    img = np.array(img, dtype=np.float32) / 255.0
+    img = np.array(img).astype(np.float32) / 255.0
+    # Add batch dimension
     img = np.expand_dims(img, axis=0)
     return img
 
-# Postprocess output image
 def postprocess_image(output):
+    # Output expected shape: (1, H, W, C)
     img = np.clip(output[0] * 255.0, 0, 255).astype(np.uint8)
     return Image.fromarray(img)
 
-# Enhance image using TFLite model
 def enhance_image(image, interpreter, input_details, output_details):
     input_tensor = preprocess_image(image, input_details[0]['shape'])
     interpreter.set_tensor(input_details[0]['index'], input_tensor)
@@ -34,7 +32,6 @@ def enhance_image(image, interpreter, input_details, output_details):
     output_tensor = interpreter.get_tensor(output_details[0]['index'])
     return postprocess_image(output_tensor)
 
-# Streamlit App UI
 st.title("SmartSight: Low-Light Image Enhancer")
 st.markdown("Enhance your low-light images using a deep learning model (Zero-DCE) powered by TensorFlow Lite.")
 
