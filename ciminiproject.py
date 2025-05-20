@@ -33,10 +33,23 @@ if uploaded_file is not None:
     st.image(image, caption="Original Image", use_container_width=True)
 
     if st.button("Enhance Image"):
-        with st.spinner("Enhancing..."):
-            interpreter, input_details, output_details = load_model()
-            enhanced_image = enhance_image(image, interpreter, input_details, output_details)
-        st.image(enhanced_image, caption="Enhanced Image", use_container_width=True)
-        st.success("Image enhancement complete!")
+    with st.spinner("Enhancing..."):
+        # Convert PIL image to OpenCV format
+        image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        
+        # Convert to LAB and apply CLAHE to L channel
+        lab = cv2.cvtColor(image_cv, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+        cl = clahe.apply(l)
+        limg = cv2.merge((cl, a, b))
+        enhanced_bgr = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        
+        # Convert back to PIL for display
+        enhanced_image = Image.fromarray(cv2.cvtColor(enhanced_bgr, cv2.COLOR_BGR2RGB))
+
+    st.image(enhanced_image, caption="Enhanced Image", use_container_width=True)
+    st.success("Image enhancement complete!")
+    
 st.markdown("---")
 st.markdown("Developed as part of the SmartSight project.")
