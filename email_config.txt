@@ -1,3 +1,3 @@
-EMAIL_ADDRESS=youremail@example.com
-EMAIL_PASSWORD=yourpassword123
-ALERT_RECEIVER_EMAIL=police.alert@example.com
+EMAIL_ADDRESS=pranjali.thakur@etu.unige.ch
+EMAIL_PASSWORD=Pratibha@6137
+ALERT_RECEIVER_EMAIL=pranjali.thakur@etu.unige.ch
