@@ -1,5 +1,5 @@
-import streamlit as st 
-from PIL import Image
+import streamlit as st
+from PIL import Image, ImageEnhance
 import tempfile
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -7,10 +7,20 @@ from googleapiclient.http import MediaFileUpload
 import cv2
 import numpy as np
 
+# --- DEBUG: Check private_key reading from secrets ---
+
+service_account_info = dict(st.secrets["gcp_service_account"])
+
+st.write("### Raw private_key from secrets (first 200 chars):")
+st.text(service_account_info["private_key"][:200])
+
+st.write("### After replace('\\n', '\\\\n') (first 200 chars):")
+st.text(service_account_info["private_key"].replace("\\n", "\n")[:200].replace("\n", "\\n"))
+
 # --- Google Drive upload setup ---
 
 def get_drive_service():
-    service_account_info = dict(st.secrets["gcp_service_account"])
+    # Replace literal '\\n' with actual newlines in private_key
     service_account_info["private_key"] = service_account_info["private_key"].replace("\\n", "\n")
     credentials = service_account.Credentials.from_service_account_info(
         service_account_info,
@@ -39,7 +49,8 @@ def enhance_image(image: Image.Image) -> Image.Image:
     cl = clahe.apply(l)
     merged = cv2.merge((cl, a, b))
     enhanced_cv = cv2.cvtColor(merged, cv2.COLOR_LAB2RGB)
-    return Image.fromarray(enhanced_cv)
+    enhanced_pil = Image.fromarray(enhanced_cv)
+    return enhanced_pil
 
 # --- Streamlit UI ---
 
@@ -52,7 +63,6 @@ if input_method == "Upload image":
     uploaded_file = st.file_uploader("Choose an image file", type=["png", "jpg", "jpeg"])
     if uploaded_file:
         img = Image.open(uploaded_file)
-
 elif input_method == "Use camera":
     captured_img = st.camera_input("Take a picture")
     if captured_img:
@@ -61,19 +71,14 @@ elif input_method == "Use camera":
 if img:
     st.image(img, caption="Original Image", use_container_width=True)
 
-    # Enhance Image button
     if st.button("Enhance Image"):
         enhanced_img = enhance_image(img)
-        st.session_state['enhanced_img'] = enhanced_img
+        st.image(enhanced_img, caption="Enhanced Image", use_container_width=True)
 
-        # Save enhanced image temporarily for upload
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
             enhanced_img.save(tmp_file.name)
             st.session_state['tmp_file_path'] = tmp_file.name
 
-    # If enhanced image is stored, display it and upload button
-    if 'enhanced_img' in st.session_state:
-        st.image(st.session_state['enhanced_img'], caption="Enhanced Image", use_container_width=True)
-
-        if st.button("Upload Enhanced Image to Google Drive"):
-            upload_file_to_drive(st.session_state['tmp_file_path'], "enhanced_image.png")
+if 'tmp_file_path' in st.session_state:
+    if st.button("Upload Enhanced Image to Google Drive"):
+        upload_file_to_drive(st.session_state['tmp_file_path'], "enhanced_image.png")
