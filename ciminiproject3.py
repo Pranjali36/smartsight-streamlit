@@ -88,7 +88,8 @@ def get_image_download_link(img, filename='enhanced_image.png'):
 # ------------------------ Streamlit UI ------------------------
 local_css()
 
-st.title("🔍 SmartSight: Low-Light Image Enhancer")
+st.title("🔍 SmartSight")
+st.subheader("Real-Time Low-Light Enhancement and Alert System")
 
 input_method = st.radio("Choose input method:", ("Upload Image", "Capture from Camera"))
 
@@ -109,23 +110,23 @@ elif input_method == "Capture from Camera":
 
 if image_np is not None:
     st.subheader("📸 Original Image")
-    st.image(image_np, channels="RGB", use_column_width=True)
+    st.image(image_np, channels="RGB", use_container_width=True)
 
     if st.button("✨ Enhance Image"):
         enhanced_np = enhance_image_clahe(image_np)
         enhanced_img = Image.fromarray(enhanced_np)
 
-        st.subheader("🔧 Enhanced Image")
-        st.image(enhanced_img, channels="RGB", use_column_width=True)
+        st.subheader("Optimized Image")
+        st.image(enhanced_img, channels="RGB", use_container_width=True)
 
         st.markdown(get_image_download_link(enhanced_img), unsafe_allow_html=True)
 
         st.markdown("---")
-        st.markdown("💾 Want to save this to your cloud?")
+        st.markdown("💾 Save space! Upload to Cloud")
         st.markdown(
             """
             <a href="https://drive.google.com/drive/my-drive" target="_blank">
-                🚀 Open Google Drive to upload
+                🚀 Drive upload
             </a>
             """, unsafe_allow_html=True
         )
