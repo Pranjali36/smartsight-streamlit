@@ -91,8 +91,8 @@ if uploaded_image:
 
         # Link to Google Drive for Manual Upload
         st.markdown("---")
-        st.markdown("🚀 Want to save it to your Google Drive?")
+        st.markdown("🚀 Save Space! Upload to Cloud")
         st.markdown(
-            '<a class="stLink" href="https://drive.google.com/drive/my-drive" target="_blank">Click here to open your Drive and upload manually</a>',
+            '<a class="stLink" href="https://drive.google.com/drive/my-drive" target="_blank">Click here to open your Drive</a>',
             unsafe_allow_html=True
         )
