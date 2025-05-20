@@ -69,11 +69,11 @@ elif input_method == "Use camera":
         img = Image.open(captured_img)
 
 if img:
-    st.image(img, caption="Original Image", use_column_width=True)
+    st.image(img, caption="Original Image", use_container_width=True)
 
     if st.button("Enhance Image"):
         enhanced_img = enhance_image(img)
-        st.image(enhanced_img, caption="Enhanced Image", use_column_width=True)
+        st.image(enhanced_img, caption="Enhanced Image", use_container_width=True)
 
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
             enhanced_img.save(tmp_file.name)
