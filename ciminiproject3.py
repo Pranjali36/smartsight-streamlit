@@ -12,15 +12,7 @@ st.set_page_config(page_title="SmartSight", layout="centered")
 
 # ----------------- Styling -----------------
 st.markdown("""
-    <style>
-    .main {
-        background-color: #f9f9f9;
-        font-family: 'Segoe UI', sans-serif;
-    }
-    h1 {
-        color: #003366;
-        text-align: center;
-    }
+<style>
     .stButton > button {
         background-color: #004080;
         color: white;
@@ -33,34 +25,10 @@ st.markdown("""
         background-color: #0059b3;
         color: white;
     }
-    .stLink {
-        color: #004080;
-        font-weight: bold;
-        text-decoration: none;
-    }
-    .stLink:hover {
-        color: #0073e6;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1em;
-    }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: center;
-    }
-    th {
-        background-color: #004080;
-        color: white;
-    }
-    </style>
+</style>
 """, unsafe_allow_html=True)
 
-# ----------------- Header -----------------
 st.title("🔍 SmartSight")
-st.markdown("<div style='text-align: center; font-size: 24px; font-weight: 600;'>Real-Time Image Enhancement and Alert System</div>", unsafe_allow_html=True)
 st.markdown("---")
 
 # ----------------- Upload Section -----------------
@@ -72,7 +40,9 @@ if upload_method == "📸 Camera":
 else:
     uploaded_image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-enhanced_image = None
+# Initialize session state for enhanced image buffer
+if "enhanced_image_bytes" not in st.session_state:
+    st.session_state.enhanced_image_bytes = None
 
 # ----------------- Police station mapping -----------------
 SECTOR_TO_POLICE_STATION = {
@@ -83,7 +53,6 @@ SECTOR_TO_POLICE_STATION = {
     "Lakeside": "Lakeside Police Station"
 }
 
-# ----------------- Load email config -----------------
 def load_email_config():
     config = {}
     try:
@@ -98,41 +67,43 @@ def load_email_config():
 
 email_config = load_email_config()
 
-# ----------------- Enhancement Logic -----------------
 if uploaded_image:
     image = Image.open(uploaded_image).convert("RGB")
     st.image(image, caption="Original Image", use_container_width=True)
 
+    # Enhance image button
     if st.button("✨ Enhance Image"):
         # Convert to OpenCV format
         img_np = np.array(image)
         img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-        # Apply CLAHE in LAB color space
+        # CLAHE enhancement
         lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         cl = clahe.apply(l)
         limg = cv2.merge((cl, a, b))
         enhanced_bgr = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         enhanced_rgb = cv2.cvtColor(enhanced_bgr, cv2.COLOR_BGR2RGB)
 
-        # Display Enhanced Image
         enhanced_image = Image.fromarray(enhanced_rgb)
-        st.image(enhanced_image, caption="🔆 Enhanced Image", use_container_width=True)
+        st.session_state.enhanced_image_bytes = io.BytesIO()
+        enhanced_image.save(st.session_state.enhanced_image_bytes, format="PNG")
+        st.session_state.enhanced_image_bytes.seek(0)
+        st.success("Image enhanced successfully!")
 
-        # Download Button for Enhanced Image
-        buffer = io.BytesIO()
-        enhanced_image.save(buffer, format="PNG")
+    # If enhanced image exists, show it + download
+    if st.session_state.enhanced_image_bytes:
+        enhanced_img = Image.open(st.session_state.enhanced_image_bytes)
+        st.image(enhanced_img, caption="🔆 Enhanced Image", use_container_width=True)
+
         st.download_button(
             label="📥 Download Enhanced Image",
-            data=buffer.getvalue(),
+            data=st.session_state.enhanced_image_bytes,
             file_name="enhanced_image.png",
-            mime="image/png",
-            key="download_btn"
+            mime="image/png"
         )
 
-        # Link to Google Drive for Manual Upload
         st.markdown("---")
         st.markdown("🚀 Save Space! Upload to Cloud")
         st.markdown(
@@ -140,18 +111,14 @@ if uploaded_image:
             unsafe_allow_html=True
         )
 
-        # ----------------- Police Alert Mechanism -----------------
-        st.markdown("---")
+        # Police alert section
         st.subheader("🚨 Police Alert System")
 
-        # Sector dropdown
         selected_sector = st.selectbox("Select your sector/location:", list(SECTOR_TO_POLICE_STATION.keys()))
-
-        # Show mapped police station
         police_station = SECTOR_TO_POLICE_STATION.get(selected_sector, "Unknown Police Station")
         st.write(f"Nearest Police Station: **{police_station}**")
 
-        # Real-time capture log data
+        # Prepare log data
         log_data = {
             "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Image Name": "enhanced_image.png",
@@ -159,24 +126,28 @@ if uploaded_image:
             "Police Station": police_station,
         }
 
-        # Button to send alert
+        # Display log table
+        st.markdown("### Real-time Capture Log")
+        st.table(log_data)
+
+        # Send alert button
         if st.button("🚨 Send Alert to Police"):
-            # Prepare email with image and log attachments
             if not email_config:
-                st.error("Email configuration missing or failed to load.")
+                st.error("Email config missing or invalid.")
             else:
                 try:
                     msg = EmailMessage()
-                    msg["Subject"] = f"Alert: Suspicious Activity Detected at {selected_sector}"
+                    msg["Subject"] = f"Alert: Suspicious Activity at {selected_sector}"
                     msg["From"] = email_config.get("EMAIL_USERNAME")
                     msg["To"] = email_config.get("RECEIVER_EMAIL")
                     msg.set_content(f"""
 Dear Officer,
 
-An alert has been triggered by SmartSight at the following location:
+An alert has been triggered by SmartSight.
 
+Details:
 Sector: {selected_sector}
-Nearest Police Station: {police_station}
+Police Station: {police_station}
 Timestamp: {log_data['Timestamp']}
 
 Please find attached the enhanced image and the alert log.
@@ -186,14 +157,14 @@ SmartSight System
                     """)
 
                     # Attach enhanced image
-                    buffer.seek(0)
-                    msg.add_attachment(buffer.getvalue(), maintype="image", subtype="png", filename="enhanced_image.png")
+                    st.session_state.enhanced_image_bytes.seek(0)
+                    msg.add_attachment(st.session_state.enhanced_image_bytes.read(), maintype="image", subtype="png", filename="enhanced_image.png")
 
-                    # Attach log file as text
+                    # Attach log as txt
                     log_text = "\n".join([f"{k}: {v}" for k,v in log_data.items()])
                     msg.add_attachment(log_text.encode("utf-8"), maintype="text", subtype="plain", filename="alert_log.txt")
 
-                    # Send email via Mailtrap SMTP
+                    # SMTP connection
                     smtp_host = email_config.get("EMAIL_HOST")
                     smtp_port = int(email_config.get("EMAIL_PORT", 587))
                     smtp_user = email_config.get("EMAIL_USERNAME")
@@ -206,4 +177,4 @@ SmartSight System
 
                     st.success(f"Alert sent successfully to {police_station}!")
                 except Exception as e:
-                    st.error(f"Failed to send alert email: {e}")
+                    st.error(f"Failed to send alert: {e}")
