@@ -31,6 +31,7 @@ uploaded_file = st.file_uploader("Upload a low-light image", type=["jpg", "jpeg"
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
    st.image(image, caption="Original Image", use_container_width=True)
+
     if st.button("Enhance Image"):
         with st.spinner("Enhancing with CLAHE..."):
             enhanced_image = enhance_with_clahe(image)
