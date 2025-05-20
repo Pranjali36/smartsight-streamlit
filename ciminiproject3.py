@@ -3,8 +3,11 @@ import numpy as np
 import cv2
 from PIL import Image
 import io
+import smtplib
+import ssl
+from email.message import EmailMessage
 from datetime import datetime
-import pandas as pd
+import os
 
 # ----------------- Page Config -----------------
 st.set_page_config(page_title="SmartSight", layout="centered")
@@ -43,14 +46,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ----------------- Session Initialization -----------------
-if 'enhanced_image' not in st.session_state:
-    st.session_state.enhanced_image = None
-if 'log_entries' not in st.session_state:
-    st.session_state.log_entries = []
-if 'landmark' not in st.session_state:
-    st.session_state.landmark = ''
-
 # ----------------- Header -----------------
 st.title("🔍 SmartSight")
 st.markdown("<div style='text-align: center; font-size: 24px; font-weight: 600;'>Real-Time Image Enhancement and Alert System</div>", unsafe_allow_html=True)
@@ -58,24 +53,19 @@ st.markdown("---")
 
 # ----------------- Upload Section -----------------
 upload_method = st.radio("Select Image Input Method", ("📸 Camera", "📁 Upload from device"))
+uploaded_image = st.camera_input("Capture an image") if upload_method == "📸 Camera" else st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-uploaded_image = None
-if upload_method == "📸 Camera":
-    uploaded_image = st.camera_input("Capture an image")
-else:
-    uploaded_image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+enhanced_image = None
+log_entries = []
 
-# ----------------- Image Display -----------------
+# ----------------- Enhancement -----------------
 if uploaded_image:
     image = Image.open(uploaded_image).convert("RGB")
     st.image(image, caption="Original Image", use_container_width=True)
 
     if st.button("✨ Enhance Image"):
-        # Convert to OpenCV format
         img_np = np.array(image)
         img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-
-        # Apply CLAHE in LAB color space
         lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
@@ -84,23 +74,23 @@ if uploaded_image:
         enhanced_bgr = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         enhanced_rgb = cv2.cvtColor(enhanced_bgr, cv2.COLOR_BGR2RGB)
 
-        # Store Enhanced Image
         enhanced_image = Image.fromarray(enhanced_rgb)
-        st.session_state.enhanced_image = enhanced_image
         st.image(enhanced_image, caption="🔆 Enhanced Image", use_container_width=True)
 
-        # Download Button
+        # Save buffer for download and alerting
         buffer = io.BytesIO()
         enhanced_image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        # Download Button
         st.download_button(
             label="📥 Download Enhanced Image",
-            data=buffer.getvalue(),
+            data=buffer,
             file_name="enhanced_image.png",
-            mime="image/png",
-            key="download_btn"
+            mime="image/png"
         )
 
-        # Drive Upload Link
+        # Drive Link
         st.markdown("---")
         st.markdown("🚀 Save Space! Upload to Cloud")
         st.markdown(
@@ -108,40 +98,71 @@ if uploaded_image:
             unsafe_allow_html=True
         )
 
-# ----------------- Alert Mechanism -----------------
-st.markdown("---")
-st.subheader("🚨 Police Alert System")
+        # ----------------- Police Alert Mechanism -----------------
+        st.markdown("---")
+        st.subheader("🚨 Police Alert Mechanism")
 
-landmark_input = st.text_input("Enter landmark (e.g. Tech Park, Central Mall, etc.):", value=st.session_state.landmark)
+        sector_options = {
+            "Sector 1": "Central Police Station",
+            "Sector 2": "South Zone Police Station",
+            "Sector 3": "North Hill Police Station",
+            "Sector 4": "Lakeview Police Station",
+            "Sector 5": "Industrial Area Police Station"
+        }
 
-# Define mock police station mapping
-police_stations = {
-    "Tech Park": "Sector 7 Police Station",
-    "Central Mall": "City Center Police HQ",
-    "East Market": "Eastside Police Post",
-    "Lakeview Park": "Greenfield Police Dept",
-    "Old Town": "Old Town Community Station"
-}
+        selected_sector = st.selectbox("Select your location sector:", list(sector_options.keys()))
 
-# If landmark exists and image has been enhanced
-if landmark_input and st.session_state.enhanced_image:
-    st.session_state.landmark = landmark_input
+        if selected_sector:
+            police_station = sector_options[selected_sector]
+            st.success(f"Nearest police station identified: **{police_station}**")
 
-    station = police_stations.get(landmark_input.strip(), "No matching station found")
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    filename = "enhanced_image.png"
-    location = landmark_input.strip()
+            if st.button("🚨 Send Alert to Police"):
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                image_name = "enhanced_image.png"
+                location = selected_sector
 
-    # Add entry to logs
-    st.session_state.log_entries.append({
-        "Timestamp": timestamp,
-        "Location": location,
-        "Image": filename,
-        "Assigned Station": station
-    })
+                # Log entry
+                log_entries.append({
+                    "Timestamp": timestamp,
+                    "Location": location,
+                    "Image": image_name,
+                    "Police Station": police_station
+                })
 
-# ----------------- Display Alert Logs -----------------
-if st.session_state.log_entries:
-    st.markdown("#### 📋 Image Capture & Alert Log")
-    df = pd.DataFrame(st.session_state.log_entries)
-    st.dataframe(df, use_container_width=True)
+                # Create log file
+                log_text = f"Timestamp: {timestamp}\nLocation: {location}\nImage: {image_name}\nPolice Station: {police_station}"
+                log_file = io.BytesIO(log_text.encode())
+                log_file.name = "incident_log.txt"
+
+                # Email config from file
+                try:
+                    with open("email_config.txt", "r") as f:
+                        lines = f.readlines()
+                        config = dict(line.strip().split("=") for line in lines if "=" in line)
+                        sender = config.get("EMAIL_ADDRESS")
+                        password = config.get("EMAIL_PASSWORD")
+                        receiver = config.get("RECEIVER_EMAIL")
+
+                    msg = EmailMessage()
+                    msg["Subject"] = "SmartSight Alert: Suspicious Image Captured"
+                    msg["From"] = sender
+                    msg["To"] = receiver
+                    msg.set_content(f"Incident reported from {location}.\nNearest Police Station: {police_station}\nTime: {timestamp}")
+
+                    msg.add_attachment(buffer.getvalue(), maintype="image", subtype="png", filename=image_name)
+                    msg.add_attachment(log_file.getvalue(), maintype="text", subtype="plain", filename="incident_log.txt")
+
+                    context = ssl.create_default_context()
+                    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+                        server.login(sender, password)
+                        server.send_message(msg)
+
+                    st.success("🚨 Alert successfully sent to the helpline email.")
+                except Exception as e:
+                    st.error(f"Failed to send alert: {e}")
+
+        # Display log table
+        if log_entries:
+            st.markdown("---")
+            st.subheader("📑 Incident Log")
+            st.table(log_entries)
